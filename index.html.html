@@ -1,0 +1,514 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tahir's professional portfolio with 3D animations, AI chatbot, and blockchain UI demos.">
+    <meta name="keywords" content="portfolio, 3D website, chatbot, animations, blockchain UI, Tahir Sayyaf">
+    <meta name="author" content="Tahir Sayyaf">
+    <title>Tahir's Portfolio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            line-height: 1.6;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav h1 {
+            font-size: 1.8rem;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+
+        nav a:hover {
+            color: #00ddeb;
+        }
+
+        #home {
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            color: white;
+            text-align: center;
+            padding: 5rem 1rem;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        #home h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #home p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            background: #00ddeb;
+            color: #1a1a2e;
+            padding: 0.8rem 1.5rem;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background: #e94560;
+            color: white;
+        }
+
+        #three-js-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        #about, #services, #portfolio, #contact {
+            background: #f9f9f9;
+            padding: 3rem 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            color: #1a1a2e;
+        }
+
+        .service-grid, .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .service-item, .portfolio-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .service-item:hover, .portfolio-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .portfolio-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .portfolio-item a {
+            color: #00ddeb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .portfolio-item a:hover {
+            color: #e94560;
+        }
+
+        #chatbot-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #00ddeb;
+            color: white;
+            padding: 0.8rem;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        #chatbot {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: #1a1a2e;
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            width: 320px;
+            display: none;
+            z-index: 999;
+        }
+
+        #chatbot.active {
+            display: block;
+        }
+
+        #chatbot .messages {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+        }
+
+        #chatbot input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            border: none;
+            border-radius: 5px;
+            background: #e94560;
+            color: white;
+        }
+
+        #chatbot input::placeholder {
+            color: #ddd;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        input, textarea {
+            padding: 0.8rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        button {
+            background: #00ddeb;
+            color: white;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #e94560;
+        }
+
+        footer {
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            nav ul {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            #home h1 {
+                font-size: 1.8rem;
+            }
+
+            #home p {
+                font-size: 1rem;
+            }
+
+            #chatbot {
+                width: 90%;
+                right: 5%;
+            }
+
+            #chatbot-toggle {
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <h1>Tahir Sayyaf's Portfolio</h1>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#portfolio">Portfolio</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="home">
+        <canvas id="three-js-canvas"></canvas>
+        <h1>Welcome to Tahir's Portfolio</h1>
+        <p>Explore stunning 3D websites, AI chatbots, and blockchain UI demos crafted with precision.</p>
+        <a href="#contact" class="btn">Hire Me</a>
+    </section>
+
+    <section id="about">
+        <h2>About Me</h2>
+        <p>Hi, I'm Tahir Sayyaf, a web and UI developer from Pakistan specializing in modern, responsive designs. I create high-quality, customizable web templates, 3D animated websites, and blockchain UI demos for educational and professional purposes.</p>
+    </section>
+
+    <section id="services">
+        <h2>Our Services</h2>
+        <div class="service-grid">
+            <div class="service-item">
+                <h3>3D Animated Websites</h3>
+                <p>Stunning 3D holographic websites with interactive particle effects and smooth animations.</p>
+            </div>
+            <div class="service-item">
+                <h3>AI Chatbot Integration</h3>
+                <p>Smart chatbots with solutions to common website issues for enhanced user engagement.</p>
+            </div>
+            <div class="service-item">
+                <h3>Blockchain UI Demos</h3>
+                <p>Premium multi-coin wallet UI templates for educational and demo purposes.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="portfolio">
+        <h2>My Work</h2>
+        <div class="portfolio-grid">
+            <div class="portfolio-item">
+                <img src="https://via.placeholder.com/300x200?text=3D+Website" alt="3D Animated Website">
+                <h3>3D Animated Landing Page</h3>
+                <p>A responsive 3D website with chatbot and animations.</p>
+                <a href="https://nl.fiverr.com/s/0bqEPXx" target="_blank">View Project</a>
+            </div>
+            <div class="portfolio-item">
+                <img src="https://via.placeholder.com/300x200?text=Portfolio+Site" alt="Portfolio Website">
+                <h3>Customizable Portfolio</h3>
+                <p>A professional portfolio with real-time editing features.</p>
+                <a href="https://nl.fiverr.com/s/VYXDL9e" target="_blank">View Project</a>
+            </div>
+            <div class="portfolio-item">
+                <img src="https://via.placeholder.com/300x200?text=Wallet+UI" alt="Wallet UI Demo">
+                <h3>Multi-Coin Wallet UI</h3>
+                <p>Editable blockchain wallet UI for demos and learning.</p>
+                <a href="https://nl.fiverr.com/s/DBaQxbX" target="_blank">View Project</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact">
+        <h2>Contact Me</h2>
+        <p>Email: <a href="mailto:tahirsayyaf664@gmail.com">tahirsayyaf664@gmail.com</a></p>
+        <form>
+            <input type="text" placeholder="Your Name" required>
+            <input type="email" placeholder="Your Email" required>
+            <textarea placeholder="Your Message" rows="5" required></textarea>
+            <button type="submit">Send Message</button>
+        </form>
+    </section>
+
+    <div id="chatbot-toggle">💬</div>
+    <div id="chatbot">
+        <div class="messages"></div>
+        <input type="text" id="chat-input" placeholder="Ask about website issues or my services...">
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Tahir Sayyaf. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Optimized 3D Particle System
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-js-canvas'), alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const particles = new THREE.Group();
+        const particleCount = 80; // Reduced for better performance
+        const geometry = new THREE.SphereGeometry(0.1, 12, 12); // Lower poly for optimization
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ddeb });
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                (Math.random() - 0.5) * 40,
+                (Math.random() - 0.5) * 40,
+                (Math.random() - 0.5) * 40
+            );
+            particles.add(particle);
+        }
+        scene.add(particles);
+
+        camera.position.z = 25;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particles.rotation.y += 0.002;
+            particles.children.forEach(p => {
+                p.position.y += Math.sin(Date.now() * 0.001 + p.position.x) * 0.03; // Smoother animation
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Mouse Interaction for 3D Particles
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(particles.children);
+            particles.children.forEach(p => {
+                p.material.color.set(0x00ddeb);
+            });
+            intersects.forEach(i => {
+                i.object.material.color.set(0xe94560);
+            });
+        });
+
+        // Refined Chatbot Logic
+        const chatbot = document.getElementById('chatbot');
+        const chatInput = document.getElementById('chat-input');
+        const messages = document.querySelector('#chatbot .messages');
+        const toggleButton = document.getElementById('chatbot-toggle');
+
+        const solutions = {
+            'slow': 'Slow website? Optimize images to WebP, minify CSS/JS, and use browser caching. Want a fast site? Hire me on Fiverr: https://nl.fiverr.com/s/0bqEPXx',
+            'responsive': 'Responsive issues? I use CSS media queries for mobile-friendly designs. Check my portfolio work: https://nl.fiverr.com/s/VYXDL9e',
+            'seo': 'SEO problems? Add meta tags, optimize headings, and submit to Google Search Console. I can optimize your site: https://nl.fiverr.com/s/0bqEPXx',
+            'links': 'Broken links? Use tools like Screaming Frog to fix them. Need a site audit? Contact me: https://nl.fiverr.com/s/0bqEPXx',
+            'security': 'Website security issues? Enable HTTPS and add a firewall. I can secure your site: https://nl.fiverr.com/s/0bqEPXx',
+            'blockchain': 'Need a blockchain UI demo? Check my multi-coin wallet UI: https://nl.fiverr.com/s/DBaQxbX',
+            '3d': 'Want a 3D animated website? I specialize in holographic effects: https://nl.fiverr.com/s/0bqEPXx',
+            'default': 'Facing any website issue or need a custom 3D site? Email me at tahirsayyaf664@gmail.com or hire me on Fiverr: https://nl.fiverr.com/s/0bqEPXx'
+        };
+
+        toggleButton.addEventListener('click', () => {
+            chatbot.classList.toggle('active');
+            if (chatbot.classList.contains('active') && !messages.children.length) {
+                addMessage('Hi! Need help with website issues (slow loading, SEO, etc.) or want a 3D site? Ask away!', 'bot');
+            }
+        });
+
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && chatInput.value.trim()) {
+                const userMessage = chatInput.value.toLowerCase();
+                addMessage(chatInput.value, 'user');
+                setTimeout(() => {
+                    let response = solutions.default;
+                    for (let key in solutions) {
+                        if (userMessage.includes(key)) {
+                            response = solutions[key];
+                            break;
+                        }
+                    }
+                    addMessage(response, 'bot');
+                }, 500);
+                chatInput.value = '';
+            }
+        });
+
+        function addMessage(text, sender) {
+            const message = document.createElement('div');
+            message.textContent = text;
+            message.style.padding = '0.5rem';
+            message.style.margin = '0.5rem';
+            message.style.background = sender === 'bot' ? '#00ddeb' : '#e94560';
+            message.style.color = 'white';
+            message.style.borderRadius = '5px';
+            message.style.textAlign = sender === 'bot' ? 'left' : 'right';
+            messages.appendChild(message);
+            messages.scrollTop = messages.scrollHeight;
+        }
+    </script>
+</body>
+</html>
